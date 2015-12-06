@@ -12,7 +12,7 @@ import Touch
 
 
 main : Signal Html
-main = Signal.map view changingCoord
+main = Signal.map2 view (changingCoord actionsMailbox1.signal) (changingCoord actionsMailbox2.signal)
 
 
 type alias Coord = Maybe (Int, Int)
@@ -21,20 +21,27 @@ type alias Coord = Maybe (Int, Int)
 type Action = In | Out
 
 
-actionsMailbox : Signal.Mailbox Action
-actionsMailbox = Signal.mailbox Out
+actionsMailbox1 : Signal.Mailbox Action
+actionsMailbox1 = Signal.mailbox Out
+
+actionsMailbox2 : Signal.Mailbox Action
+actionsMailbox2 = Signal.mailbox Out
 
 
-view : Coord -> Html
-view c =
+view : Coord -> Coord -> Html
+view c1 c2 =
   let outerStyle = [("margin-left", "2em"), ("margin-top", "2em"), ("font-size", "20pt")]
       innerStyle = [("width", "20em"), ("height", "10em"), ("border", "1px solid black")]
-      emitIn  = onBoth ["mousemove",  "touchmove"] actionsMailbox.address In
-      emitOut = onBoth ["mouseleave", "touchend"]  actionsMailbox.address Out
+      emitIn1  = onBoth ["mousemove",  "touchmove"] actionsMailbox1.address In
+      emitOut1 = onBoth ["mouseleave", "touchend"]  actionsMailbox1.address Out
+      emitIn2  = onBoth ["mousemove",  "touchmove"] actionsMailbox2.address In
+      emitOut2 = onBoth ["mouseleave", "touchend"]  actionsMailbox2.address Out
   in
   div [style outerStyle]
-    [ div ([style innerStyle] ++ emitIn ++ emitOut) []
-    , p [] [text (toString c)]
+    [ div ([style innerStyle] ++ emitIn1 ++ emitOut1) []
+    , p [] [text (toString c1)]
+    , div ([style innerStyle] ++ emitIn2 ++ emitOut2) []
+    , p [] [text (toString c2)]
     ]
 
 
@@ -48,13 +55,13 @@ messageOn : String -> Signal.Address a -> a -> Attribute
 messageOn name addr msg =
   on name value (\_ -> Signal.message addr msg)
 
-changingCoord : Signal Coord
-changingCoord =
+changingCoord : Signal Action -> Signal Coord
+changingCoord actions =
   let mouse = Signal.map Just Mouse.position
       touch =
         Signal.map (Maybe.map toPair << List.head) Touch.touches
   in
-  Signal.map2 toggleInOut actionsMailbox.signal <| Signal.merge mouse touch
+  Signal.map2 toggleInOut actions <| Signal.merge mouse touch
 
 
 toggleInOut : Action -> Coord -> Coord
